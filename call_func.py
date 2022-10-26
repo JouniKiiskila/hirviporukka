@@ -1,4 +1,4 @@
-# TEST UPDATE OPERATION
+# TEST A SQL FUNCTION
 
 # LIBRARIES AND MODULES
 import psycopg2  # For PostgreSQL
@@ -19,13 +19,12 @@ try:
     # Create a cursor to execute commands and retrieve the result set
     cursor = dbaseconnetion.cursor()
     
-    # Execute a SQL command to update a group
-    command = "UPDATE public.jakoryhma SET ryhman_nimi = 'Ryhmä 4' WHERE ryhma_id = 4;"
+    # Execute a SQL SELECT command to get results from a function
+    command = "SELECT * FROM public.get_member(2);"
     cursor.execute(command)
 
-    # Commit the transaction
-    dbaseconnetion.commit()
-    print("Tietue päivitettiin")
+    person_data = cursor.fetchone()
+    print(person_data)
 
    
 # Throw an error if connection or cursor creation fails                                     
