@@ -31,7 +31,7 @@ try:
 except(Exception, psycopg2.Error) as error:
     print("Tietokantayhteydessä tapahtui virhe", error)
 
-# If or if not successfull close the cursor and the connection   
+# Close the cursor and the connection   
 finally:
     if (dbaseconnetion):
         cursor.close()
