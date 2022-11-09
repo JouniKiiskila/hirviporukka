@@ -5,9 +5,10 @@
 # ---------------------
 
 import sys # Needed for starting the application
-import psycopg2
 from PyQt5.QtWidgets import * # All widgets
 from PyQt5.uic import loadUi
+import pgModule
+import prepareData
 
 # CLASS DEFINITIONS FOR THE APP
 # -----------------------------
@@ -26,49 +27,41 @@ class GroupMainWindow(QMainWindow):
         self.groupInfo = self.groupSummaryTableWidget
         self.sharedMeatInfo = self.meatSharedTableWidget
 
+        '''
         # Database connection parameters
         self.database = "metsastys"
         self.user = "sovellus"
         self.userPassword = "Q2werty"
         self.server = "localhost"
         self.port = "5432"
-
+        '''
         # SIGNALS
 
         # Emit a signal when refresh push button is pressed
-        self.refreshBtn.clicked.connect(self.refreshData)
+        self.refreshBtn.clicked.connect(self.agentRefreshData)
 
     # SLOTS
 
-    # Load data to table Widgets
-    # Try to establish a connection to DB server
-    def refreshData(self):
-        
-        # To avoid Fatal error crashing the app uses try-except-finally structure 
-        try:   
-        # Create a connection object
-            dbaseconnection = psycopg2.connect(database=self.database, user=self.user, password=self.userPassword,
-                                        host=self.server, port=self.port)
-        
-            # Create a cursor to execute commands and retrieve result set
-            cursor = dbaseconnection.cursor()
-        
-            # Execute a SQL command to get hunters (jasen)
-            command = "SELECT * FROM public.jaetut_lihat;"
-            cursor.execute(command)
-            result_set = cursor.fetchall()
-            print("Lihaa on jaettu seuraavasti:", result_set)
+    # Agent method is used for receiving signal from an UI element
 
-        # Throw an error if connection or cursor creation fails                                     
-        except(Exception, psycopg2.Error) as e:
-            print("Tietokantayhteydessä tapahtui virhe", e)
+    def agentRefreshData(self):
+        dataBaseOperation1 = pgModule.DatabaseOperation()
+        connectionArguments = dataBaseOperation1.readDatabaseSettingsFromFile('settings.dat')
+        dataBaseOperation1.getAllRowsFromTable(connectionArguments, 'public.jaetut_lihat')
+       
+        dataBaseOperation2 = pgModule.DatabaseOperation()        
+        dataBaseOperation2.getAllRowsFromTable(connectionArguments, 'public.jakoryhma_yhteenveto')    
+        
+        # Let's call the real method which updates the widget
+        self.refreshData(dataBaseOperation1, self.sharedMeatInfo)
+        self.refreshData(dataBaseOperation2, self.groupInfo)
 
-        # If or if not successfull close the cursor and the connection   
-        finally:
-            if dbaseconnection:
-                cursor.close()
-                dbaseconnection.close()
-                print("Yhteys tietokantaan katkaistiin")
+    # This is a function that updates widgets in the UI,
+    # because it does not receive signals it's not a slot 
+    def refreshData(self, databaseOperation, widget):
+        prepareData.prepareTable(databaseOperation, widget)
+        
+        
 
 # APPLICATION CREATION AND STARTING
 # ----------------------------------
