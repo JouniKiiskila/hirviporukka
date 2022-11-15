@@ -42,22 +42,26 @@ class GroupMainWindow(QMainWindow):
 
     # SLOTS
 
-    # Agent method is used for receiving signal from an UI element
-
+    # Agent method is used for receiving a signal from an UI element
     def agentRefreshData(self):
-        dataBaseOperation1 = pgModule.DatabaseOperation()
-        connectionArguments = dataBaseOperation1.readDatabaseSettingsFromFile('settings.dat')
-        dataBaseOperation1.getAllRowsFromTable(connectionArguments, 'public.jaetut_lihat')
-       
-        dataBaseOperation2 = pgModule.DatabaseOperation()        
-        dataBaseOperation2.getAllRowsFromTable(connectionArguments, 'public.jakoryhma_yhteenveto')    
+
+        # Read data from view jaetut_lihat
+        databaseOperation1 = pgModule.DatabaseOperation()
+        connectionArguments = databaseOperation1.readDatabaseSettingsFromFile('settings.dat')
+        databaseOperation1.getAllRowsFromTable(connectionArguments, 'public.jaetut_lihat')
+        print(databaseOperation1.detailedMessage)
+        
+        # Read data from view jakoryhma_yhteenveto, no need to read connection args twice
+        databaseOperation2 = pgModule.DatabaseOperation()
+        databaseOperation2.getAllRowsFromTable(connectionArguments, 'public.jakoryhma_yhteenveto')
+        print(databaseOperation2.detailedMessage)
         
         # Let's call the real method which updates the widget
-        self.refreshData(dataBaseOperation1, self.sharedMeatInfo)
-        self.refreshData(dataBaseOperation2, self.groupInfo)
+        self.refreshData(databaseOperation1, self.sharedMeatInfo)
+        self.refreshData(databaseOperation2, self.groupInfo)
 
-    # This is a function that updates widgets in the UI,
-    # because it does not receive signals it's not a slot 
+    # This is a function that updates table widgets in the UI
+    # because it does not receive signals; it's not a slot
     def refreshData(self, databaseOperation, widget):
         prepareData.prepareTable(databaseOperation, widget)
         
