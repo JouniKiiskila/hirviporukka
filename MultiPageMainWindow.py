@@ -6,7 +6,7 @@
 import sys # Needed for starting the application
 from PyQt5.QtWidgets import * # All widgets
 from PyQt5.uic import loadUi
-from PyQt5.QtCore import *
+from PyQt5.QtCore import * # FIXME: korjaa ylimääräset poijes
 import pgModule
 import prepareData
 

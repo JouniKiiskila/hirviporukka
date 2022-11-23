@@ -3,6 +3,7 @@
 
 # LIBRARIES AND MODULES
 # ---------------------
+
 import sys # Needed for starting the application
 from PyQt5.QtWidgets import * # All widgets
 from PyQt5.uic import loadUi
@@ -11,6 +12,7 @@ import prepareData
 
 # CLASS DEFINITIONS FOR THE APP
 # -----------------------------
+
 class GroupMainWindow(QMainWindow):
     
     # Constructor, a method for creating objects from this class
