@@ -3,71 +3,262 @@
 
 # LIBRARIES AND MODULES
 # ---------------------
-import sys # Needed for starting the application
-from PyQt5.QtWidgets import * # All widgets
+
+import sys  # Needed for starting the application
+from PyQt5.QtWidgets import *  # All widgets
 from PyQt5.uic import loadUi
-from PyQt5.QtCore import * # FIXME: korjaa ylimääräset poijes
+from PyQt5.QtCore import *  # FIXME: Everything,  change to individual components
+from datetime import date
 import pgModule
 import prepareData
 
 # CLASS DEFINITIONS FOR THE APP
 # -----------------------------
-class GroupMainWindow(QMainWindow):
-    
+
+
+class MultiPageMainWindow(QMainWindow):
+
     # Constructor, a method for creating objects from this class
     def __init__(self):
         QMainWindow.__init__(self)
 
         # Create an UI from the ui file
-        loadUi('groupInfoMainWindow.ui', self)
+        loadUi('MultiPageMainWindow.ui', self)
 
-        # Define properties for ui elements
-        self.refreshBtn = self.refreshPushButton
-        self.groupInfo = self.groupSummaryTableWidget
-        self.sharedMeatInfo = self.meatSharedTableWidget
+        # Read database connection arguments from the settings file
+        databaseOperation = pgModule.DatabaseOperation()
+        self.connectionArguments = databaseOperation.readDatabaseSettingsFromFile('settings.dat')
+        
 
-        '''
-        # Database connection parameters
-        self.database = "metsastys"
-        self.user = "sovellus"
-        self.userPassword = "Q2werty"
-        self.server = "localhost"
-        self.port = "5432"
-        '''
-        # SIGNALS
+        # UI ELEMENTS TO PROPERTIES
+        # -------------------------
 
-        # Emit a signal when refresh push button is pressed
-        self.refreshBtn.clicked.connect(self.agentRefreshData)
+        # Create a status bar to show informative messages 
+        self.statusBar = QStatusBar() # Create a status bar object
+        self.setStatusBar(self.statusBar) # Set it as the status bar for the main window
+        self.statusBar.show() # Make it visible
 
-    # SLOTS
 
-    # Agent method is used for receiving a signal from an UI element
-    def agentRefreshData(self):
+        # Set current date when the app starts
+        self.currentDate = date.today()
+        
+
+
+        # Summary page (Yhteenveto)
+        self.summaryRefreshBtn = self.summaryRefreshPushButton
+        self.summaryRefreshBtn.clicked.connect(
+        self.populateSummaryPage)  # Signal
+        self.summaryMeatSharedTW = self.meatSharedTableWidget
+        self.summaryGroupSummaryTW = self.groupSummaryTableWidget
+
+        # Kill page (Kaato)
+        self.shotByCB = self.shotByComboBox
+        self.shotDateDE = self.shotDateEdit
+        self.shotLocationLE = self.locationLineEdit
+        self.shotAnimalCB = self.animalComboBox
+        self.shotAgeGroupCB = self.ageGroupComboBox
+        self.shotGenderCB = self.genderComboBox
+        self.shotWeightLE = self.weightLineEdit
+        self.shotUsageCB = self.usageComboBox
+        self.shotAddInfoTE = self.additionalInfoTextEdit
+        self.shotSavePushBtn = self.saveShotPushButton
+        self.shotSavePushBtn.clicked.connect(self.saveShot) # Signal
+        self.shotKillsTW = self.killsKillsTableWidget
+
+        # Share page (Lihanjako)
+        self.shareKillsTW = self.shareKillsTableWidget
+        self.shareDE = self.shareDateEdit
+        self.sharePortionCB = self.portionComboBox
+        self.shareAmountLE = self.amountLineEdit
+        self.shareGroupCB = self.groupComboBox
+        self.shareSavePushBtn = self.shareSavePushButton
+
+        # License page (Luvat)
+        self.licenseYearLE = self.licenseYearLineEdit
+        self.licenseAnimalCB = self.licenseAnimalComboBox
+        self.licenseAgeGroupCB = self.licenseAgeGroupComboBox
+        self.licenseGenderCB = self.licenseGenderComboBox
+        self.licenseAmountLE = self.licenseAmountLineEdit
+        self.licenseSavePushBtn = self.licenseSavePushButton
+        self.licenseSummaryTW = self.licenseSummaryTableWidget
+
+        # Signal when a page is opened
+        self.pageTab = self.tabWidget
+        self.pageTab.currentChanged.connect(self.populateAllPages)
+
+        # Signals other than emitted by UI elements
+        self.populateAllPages()
+
+        # SLOTS
+
+        # Create an alert dialog for critical failures eg no database connection established
+    def alert(self, windowTitle, alertMsg, additionalMsg, details):
+        """Creates a message box for critical errors
+
+        Args:
+            windowTitle (str): Title of the message box
+            alertMsg (str): Short description of the error in Finnish
+            additionalMsg (str): Additional information in Finnish
+            details (str): Details about the error in English
+        """
+        alertDialog = QMessageBox() # Create a message box object
+        alertDialog.setWindowTitle(windowTitle) # Add appropriate title to  the message box
+        alertDialog.setIcon(QMessageBox.Critical) # Set icon to critical
+        alertDialog.setText(alertMsg) # Basic information about the error in Finnish
+        alertDialog.setInformativeText(additionalMsg) # Additional information about the error in Finnish
+        alertDialog.setDetailedText(details) # Technical details in English (from psycopg2)
+        alertDialog.setStandardButtons(QMessageBox.Ok) # Only OK is needed to close the dialog
+        alertDialog.exec_() # Open the message box    
+
+    # A method to populate summaryPage's table widgets
+
+    def populateSummaryPage(self):
 
         # Read data from view jaetut_lihat
         databaseOperation1 = pgModule.DatabaseOperation()
-        connectionArguments = databaseOperation1.readDatabaseSettingsFromFile('settings.dat')
-        databaseOperation1.getAllRowsFromTable(connectionArguments, 'public.jaetut_lihat')
-        print(databaseOperation1.detailedMessage)
         
+        databaseOperation1.getAllRowsFromTable(
+            self.connectionArguments, 'public.jaetut_lihat')
+
+        # Check if error has occured
+        if databaseOperation1.errorCode != 0:
+            self.alert('Vakava virhe', 'Tietokantaoperaatiota epäonnistui',
+                       databaseOperation1.errorMessage, databaseOperation1.detailedMessage)
+        prepareData.prepareTable(databaseOperation1, self.summaryMeatSharedTW)
+
         # Read data from view jakoryhma_yhteenveto, no need to read connection args twice
         databaseOperation2 = pgModule.DatabaseOperation()
-        databaseOperation2.getAllRowsFromTable(connectionArguments, 'public.jakoryhma_yhteenveto')
-        print(databaseOperation2.detailedMessage)
-        
-        # Let's call the real method which updates the widget
-        self.refreshData(databaseOperation1, self.sharedMeatInfo)
-        self.refreshData(databaseOperation2, self.groupInfo)
+        databaseOperation2.getAllRowsFromTable(
+            self.connectionArguments, 'public.jakoryhma_yhteenveto') 
 
-    # This is a function that updates table widgets in the UI
-    # because it does not receive signals; it's not a slot
-    def refreshData(self, databaseOperation, widget):
-        prepareData.prepareTable(databaseOperation, widget)
-        
+        # Check if error has occured
+        if databaseOperation1.errorCode != 0:
+            self.alert('Vakava virhe', 'Tietokantaoperaatiota epäonnistui',
+                       databaseOperation2.errorMessage, databaseOperation2.detailedMessage)
+        else:               
+
+            prepareData.prepareTable(databaseOperation1, self.summaryMeatSharedTW)
+            prepareData.prepareTable(
+            databaseOperation2, self.summaryGroupSummaryTW)
+
+    def populateKillPage(self):
+        # Set default date to current date
+        self.shotDateDE.setDate(self.currentDate)
+
+        # Read data from view kaatoluettelo
+        databaseOperation1 = pgModule.DatabaseOperation()
+        databaseOperation1.getAllRowsFromTable(
+            self.connectionArguments, 'public.kaatoluettelo')
+
+        # Check if error has occured
+        if databaseOperation1.errorCode != 0:
+            self.alert('Vakava virhe', 'Tietokantaoperaatiota epäonnistui',
+                       databaseOperation1.errorMessage, databaseOperation1.detailedMessage)
+        else:
+            prepareData.prepareTable(databaseOperation1, self.summaryMeatSharedTW)
+            prepareData.prepareTable(databaseOperation1, self.shotKillsTW)
+
+        # Read data from view nimivalinta
+        databaseOperation2 = pgModule.DatabaseOperation()
+        databaseOperation2.getAllRowsFromTable(
+            self.connectionArguments, 'public.nimivalinta')
+        self.shotByIdList = prepareData.prepareComboBox(
+            databaseOperation2, self.shotByCB, 1, 0)
+
+            # Check if error has occured
+        if databaseOperation1.errorCode != 0:
+            self.alert('Vakava virhe', 'Tietokantaoperaatiota epäonnistui',        
+                       databaseOperation2.errorMessage, databaseOperation2.detailedMessage)
+        else:
+            prepareData.prepareTable(databaseOperation2, self.summaryMeatSharedTW)
+
+        # Read data from table elain and populate the combo box
+        databaseOperation3 = pgModule.DatabaseOperation()
+        databaseOperation3.getAllRowsFromTable(
+            self.connectionArguments, 'public.elain')
+        self.shotAnimalText = prepareData.prepareComboBox(            
+            databaseOperation3, self.shotAnimalCB, 0, 0)
+
+        # Check if error has occured
+        if databaseOperation1.errorCode != 0:
+            self.alert('Vakava virhe', 'Tietokantaoperaatiota epäonnistui',
+                       databaseOperation3.errorMessage, databaseOperation3.detailedMessage)
+        else:               
+            prepareData.prepareTable(databaseOperation1, self.summaryMeatSharedTW)    
+
+        # Read data from table aikuinenvasa and populate the combo box
+        databaseOperation4 = pgModule.DatabaseOperation()
+        databaseOperation4.getAllRowsFromTable(
+            self.connectionArguments, 'public.aikuinenvasa')
+        self.shotAgeGroupText = prepareData.prepareComboBox(
+            databaseOperation4, self.shotAgeGroupCB, 0, 0)
+
+        # Read data from table sukupuoli and populate the combo box
+        databaseOperation5 = pgModule.DatabaseOperation()
+        databaseOperation5.getAllRowsFromTable(
+            self.connectionArguments, 'public.sukupuoli')
+        self.shotGenderText = prepareData.prepareComboBox(
+            databaseOperation5, self.shotGenderCB, 0, 0)
+
+        # Read data from table kasittely
+        databaseOperation6 = pgModule.DatabaseOperation()
+        databaseOperation6.getAllRowsFromTable(
+            self.connectionArguments, 'public.kasittely')
+        if databaseOperation1.errorCode != 0:
+            self.alert('Vakava virhe', 'Tietokantaoperaatiota epäonnistui',
+                       databaseOperation1.errorMessage, databaseOperation1.detailedMessage)
+        else:    
+            self.shotUsageIdList = prepareData.prepareComboBox(
+            databaseOperation6, self.shotUsageCB, 1, 0)
+
+    def populateAllPages(self):
+        self.populateSummaryPage()
+        self.populateKillPage()
+
+    def saveShot(self):
+        try:            
+            shotByChosenItemIx = self.shotByCB.currentIndex() # Row index of the selected row
+            shotById = self.shotByIdList[shotByChosenItemIx] # Id value of the selected row
+            shootingDay = self.shotDateDE.date().toPyDate() # Python date is in ISO format
+            shootingPlace = self.shotLocationLE.text() # Text value of line edit
+            animal = self.shotAnimalCB.currentText() # Selected value of the combo box 
+            ageGroup = self.shotAgeGroupCB.currentText() # Selected value of the combo box
+            gender = self.shotGenderCB.currentText() # Selected value of the combo box
+            weight = float(self.shotWeightLE.text()) # Convert line edit value into float (real in the DB)
+            useIx = self.shotUsageCB.currentIndex() # Row index of the selected row
+            use = self.shotUsageIdList[useIx] # Id value of the selected row
+            additionalInfo = self.shotAddInfoTE.toPlainText() # Convert multiline text edit into plain text
+
+            # Insert data into kaato table
+            # Create a SQL clause to insert element values to the DB
+            sqlClauseBeginning = "INSERT INTO public.kaato(jasen_id, kaatopaiva, ruhopaino, paikka_teksti, kasittelyid, elaimen_nimi, sukupuoli, ikaluokka, lisatieto) VALUES("
+            sqlClauseValues = f"{shotById}, '{shootingDay}', {weight}, '{shootingPlace}', {use}, '{animal}', '{gender}', '{ageGroup}', '{additionalInfo}'"
+            sqlClauseEnd = ");"
+            sqlClause = sqlClauseBeginning + sqlClauseValues + sqlClauseEnd
+        except:
+            self.alert('meatSharedTableWidget_2irheellinen syöte', 'Tarkista antamasi tiedot')    
+        print(sqlClause) # FIXME: Remove this line in production
+
+        # create DatabaseOperation object to execute the SQL clause
+        databaseOperation = pgModule.DatabaseOperation()
+        databaseOperation.insertRowToTable(self.connectionArguments, sqlClause)
+
+        if databaseOperation.errorCode != 0:
+            self.alert('Vakava virhe', 'Tietokantaoperaatiota epäonnistui',
+                       databaseOperation.errorMessage, databaseOperation.detailedMessage)
+        else:
+            # Update the page to show new data and clear previous
+            self.populateKillPage()
+            self.shotLocationLE.clear()
+            self.shotWeightLE.clear()
+            self.shotAddInfoTE.clear()
+
+        # TODO: Add refresh method to update kaadot table widget
         
 
 # APPLICATION CREATION AND STARTING
 # ----------------------------------
+
 
 # Check if app will be created and started directly from this file
 if __name__ == "__main__":
@@ -76,11 +267,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
 
-    # Create the Main Window object from FormWithTable Class and show it on the screen
-    appWindow = GroupMainWindow()
-    appWindow.show()  # This can also be included in the FormWithTable class
+    # Create the Main Window object from MultiPageMainWindowe Class and show it on the screen
+    appWindow = MultiPageMainWindow()
+    appWindow.show()  # This can also be included in the MultiPageMainWindow class
     sys.exit(app.exec_())
-        
-    
-
-    
