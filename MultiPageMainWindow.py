@@ -5,10 +5,8 @@
 # ---------------------
 
 import sys  # Needed for starting the application
-import plotly
 from PyQt5.QtWidgets import *  # All widgets
 from PyQt5 import QtWebEngineWidgets # For showing html content
-
 from PyQt5.uic import loadUi
 from PyQt5.QtCore import *  # FIXME: Everything,  change to individual components
 from datetime import date
@@ -147,10 +145,12 @@ class MultiPageMainWindow(QMainWindow):
         databaseOperation2.getAllRowsFromTable(
             self.connectionArguments, 'public.jakoryhma_yhteenveto')
 
-        #figure = figures.createSankeyChart()
-        figure = figures.testChart()
-        plotly.offline.plot(figure, filename='meatstreams.html') # Write the chart to a html file
-        url = QUrl('file:///meatstreams.html') # Create a relative url to the file
+        # figure = figures.createSankeyChart()
+        # figure = figures.testChart()
+        htmlFile = 'meatstreams.html'
+        urlString = f'file:///{htmlFile}'
+        # figures.createOfflineFile(figure, htmlFile) # Write the chart to a html file
+        url = QUrl(urlString) # Create a relative url to the file
         self.sankeyWebV.load(url) # Load it into the web view element
 
         # Check if error has occurred
